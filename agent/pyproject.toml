@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "smithy-agent"
+version = "0.1.0"
+description = "Smithy Cloud agent — runs on Windows servers and communicates with the orchestrator"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx",
+    "rich",
+]
+
+[project.scripts]
+smithy-agent = "smithy_agent.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/smithy_agent"]

@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "smithy-cloud-cli"
+version = "0.1.0"
+description = "CLI for deploying and managing Smithy Cloud processes"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx",
+    "rich",
+    "click",
+]
+
+[project.scripts]
+smithy-cloud = "smithy_cloud_cli.main:cli"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/smithy_cloud_cli"]
