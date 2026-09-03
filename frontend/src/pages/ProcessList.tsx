@@ -5,6 +5,7 @@ import { fetchProcesses, deleteProcess } from "@/lib/api";
 import type { Process } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useMinRole } from "@/lib/auth";
 import {
   Table,
   TableBody,
@@ -20,6 +21,7 @@ export function ProcessList() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const canWrite = useMinRole("operator");
 
   async function loadProcesses() {
     try {
@@ -55,10 +57,12 @@ export function ProcessList() {
           <h1 className="text-2xl font-bold tracking-tight">Processes</h1>
           {!loading && <Badge variant="secondary">{processes.length}</Badge>}
         </div>
-        <Button render={<Link to="/processes/new" />}>
-          <Plus className="h-4 w-4" />
-          New Process
-        </Button>
+        {canWrite && (
+          <Button render={<Link to="/processes/new" />}>
+            <Plus className="h-4 w-4" />
+            New Process
+          </Button>
+        )}
       </div>
 
       {error && (
@@ -88,10 +92,12 @@ export function ProcessList() {
                 Create your first bot process, then deploy it to an agent.
               </p>
             </div>
-            <Button render={<Link to="/processes/new" />}>
-              <Plus className="h-4 w-4" />
-              New Process
-            </Button>
+            {canWrite && (
+              <Button render={<Link to="/processes/new" />}>
+                <Plus className="h-4 w-4" />
+                New Process
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -129,6 +135,7 @@ export function ProcessList() {
                     {new Date(process.created_at).toLocaleDateString()}
                   </TableCell>
                   <TableCell className="text-right">
+                    {canWrite && (
                     <div className="flex gap-1 justify-end">
                       <Button
                         variant="ghost"
@@ -153,6 +160,7 @@ export function ProcessList() {
                         Delete
                       </Button>
                     </div>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

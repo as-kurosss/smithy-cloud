@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from smithy_cloud.database import get_db
+from smithy_cloud.deps import require_level
 from smithy_cloud.models import (
     Agent,
     AgentStatus,
@@ -21,6 +22,7 @@ from smithy_cloud.models import (
     ProcessLog,
     ProcessRun,
     RunStatus,
+    User,
 )
 from smithy_cloud.schemas import (
     AgentCommand,
@@ -61,7 +63,9 @@ async def _authenticate(
 
 @router.post("", response_model=AgentRegisterResponse, status_code=201)
 async def register_agent(
-    body: AgentCreate, db: AsyncSession = Depends(get_db)
+    body: AgentCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(require_level("admin")),
 ) -> AgentRegisterResponse:
     """Register (or re-register) an agent. Issues a secret — shown only here."""
     secret = secrets.token_urlsafe(32)
@@ -94,6 +98,7 @@ async def list_agents(
     db: AsyncSession = Depends(get_db),
     limit: int = Query(default=100, le=1000),
     offset: int = Query(default=0, ge=0),
+    user: User | None = Depends(require_level("viewer")),
 ) -> list[Agent]:
     result = await db.execute(
         select(Agent).order_by(Agent.created_at.desc()).limit(limit).offset(offset)
@@ -102,7 +107,11 @@ async def list_agents(
 
 
 @router.get("/{agent_id}", response_model=AgentResponse)
-async def get_agent(agent_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> Agent:
+async def get_agent(
+    agent_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(require_level("viewer")),
+) -> Agent:
     agent = await db.get(Agent, agent_id)
     if agent is None:
         raise HTTPException(status_code=404, detail="Agent not found")
@@ -110,7 +119,11 @@ async def get_agent(agent_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> 
 
 
 @router.delete("/{agent_id}", status_code=204)
-async def remove_agent(agent_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> None:
+async def remove_agent(
+    agent_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(require_level("admin")),
+) -> None:
     agent = await db.get(Agent, agent_id)
     if agent is None:
         raise HTTPException(status_code=404, detail="Agent not found")

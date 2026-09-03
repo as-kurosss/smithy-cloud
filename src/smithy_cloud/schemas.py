@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from smithy_cloud.models import (
     AgentStatus,
@@ -56,6 +56,42 @@ class AgentCommand(BaseModel):
     process_id: uuid.UUID
     run_id: uuid.UUID | None = None
     process_data: dict[str, Any] | None = None  # files, entry_point, requirements for deploy
+
+
+# --- User auth schemas ---
+
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("email")
+    @classmethod
+    def _normalize_email(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if "@" not in normalized or len(normalized) > 320:
+            raise ValueError("Invalid email address")
+        return normalized
+
+
+class TokenPair(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
+class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    email: str
+    role: str
+    is_active: bool
+    created_at: datetime
 
 
 # --- Process schemas ---

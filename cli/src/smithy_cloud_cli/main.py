@@ -150,7 +150,7 @@ def update(
         asyncio.run(_update())
     except Exception as err:
         console.print(f"[red]Update failed:[/red] {err}")
-        raise SystemExit(1)
+        raise SystemExit(1) from err
     console.print(f"[green]✓ Process updated[/green]  id={process_id}")
 
     if not agent_ref:
@@ -176,10 +176,10 @@ def update(
         agent_id, _ = asyncio.run(_deploy())
     except LookupError as err:
         console.print(f"[red]Deploy failed:[/red] {err}")
-        raise SystemExit(1)
+        raise SystemExit(1) from err
     except Exception as err:
         console.print(f"[red]Deploy failed:[/red] {err}")
-        raise SystemExit(1)
+        raise SystemExit(1) from err
     console.print(f"[green]✓ Deploy triggered[/green]  agent={agent_id}")
 
 
@@ -245,6 +245,50 @@ def agents(ctx: click.Context) -> None:
         )
 
     console.print(table)
+
+
+# ---------------------------------------------------------------------------
+# login / logout
+# ---------------------------------------------------------------------------
+
+
+@cli.command()
+@click.option("--email", prompt=True, help="Account email.")
+@click.option(
+    "--password",
+    prompt=True,
+    hide_input=True,
+    help="Account password.",
+)
+@click.pass_context
+def login(ctx: click.Context, email: str, password: str) -> None:
+    """Authenticate against the orchestrator and store tokens locally."""
+
+    async def _login() -> dict[str, Any]:
+        async with _client_ctx(ctx) as client:
+            return await client.login(email, password)
+
+    try:
+        user = asyncio.run(_login())
+    except Exception as err:
+        console.print(f"[red]Login failed:[/red] {err}")
+        raise SystemExit(1) from err
+    console.print(
+        f"[green]✓ Logged in[/green]  {user.get('email')} (role={user.get('role')})"
+    )
+
+
+@cli.command()
+@click.pass_context
+def logout(ctx: click.Context) -> None:
+    """Revoke the stored session and drop local credentials."""
+
+    async def _logout() -> None:
+        async with _client_ctx(ctx) as client:
+            await client.logout()
+
+    asyncio.run(_logout())
+    console.print("[green]✓ Logged out[/green]")
 
 
 # ---------------------------------------------------------------------------

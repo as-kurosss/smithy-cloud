@@ -64,6 +64,22 @@ Processes are business processes. They are deployed to agents and run there.
 | WS     | `/ws/processes/{process_id}`    | Live process log stream  |
 | WS     | `/ws/runs/{run_id}`             | Live run log stream      |
 
+## User auth (RBAC)
+
+Disabled by default (`AUTH_ENABLED=false` = fully open API, local dev behavior).
+To enable:
+
+1. Set `AUTH_ENABLED=true` and a long random `SECRET_KEY` (see `.env.example`).
+2. Restart the API and run `alembic upgrade head` (adds `users` + `refresh_tokens`).
+3. Register the first user via `POST /api/auth/register` — it becomes **admin**;
+   later users get **viewer**. Or seed one via `BOOTSTRAP_ADMIN_EMAIL/PASSWORD`.
+
+Roles form a hierarchy: `viewer` (read) < `operator` (deploy/run/stop, edit
+processes) < `admin` (register/delete agents). CLI: `smithy-cloud login`
+(stores tokens in `~/.smithy/credentials.json`), `smithy-cloud logout`.
+The SPA login page appears automatically when auth is enabled; live-log
+websockets take the JWT as `?token=`.
+
 ## Local run (VSCode dev loop)
 
 Use `LocalBackend` from `smithy_cloud.executor` to run a process on your

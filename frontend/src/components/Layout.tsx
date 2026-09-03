@@ -1,6 +1,7 @@
-import { Link, NavLink } from "react-router-dom";
-import { Bot } from "lucide-react";
+import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Bot, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 
 const navItems = [
   { to: "/processes", label: "Processes" },
@@ -17,6 +18,8 @@ function linkClass({ isActive }: { isActive: boolean }) {
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  const { user, authEnabled, logout } = useAuth();
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-100/70 via-background to-background text-foreground">
       <header className="sticky top-0 z-10 border-b border-emerald-900/10 bg-background/80 backdrop-blur-md">
@@ -34,13 +37,36 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </span>
             </span>
           </Link>
-          <nav className="ml-6 flex items-center gap-1">
-            {navItems.map((item) => (
-              <NavLink key={item.to} to={item.to} className={linkClass}>
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
+          {(!authEnabled || user) && (
+            <nav className="ml-6 flex items-center gap-1">
+              {navItems.map((item) => (
+                <NavLink key={item.to} to={item.to} className={linkClass}>
+                  {item.label}
+                </NavLink>
+              ))}
+            </nav>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            {authEnabled && user && (
+              <>
+                <span className="hidden text-sm text-muted-foreground sm:block">{user.email}</span>
+                <span className="rounded-full bg-emerald-600/10 px-2.5 py-0.5 text-xs font-semibold capitalize text-emerald-700">
+                  {user.role}
+                </span>
+                <button
+                  type="button"
+                  title="Sign out"
+                  onClick={async () => {
+                    await logout();
+                    navigate("/login");
+                  }}
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-all hover:bg-emerald-600/10 hover:text-emerald-900"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>

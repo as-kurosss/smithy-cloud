@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
+import { useMinRole } from "@/lib/auth";
 import {
   Table,
   TableBody,
@@ -24,6 +25,7 @@ export function AgentList() {
   const [newName, setNewName] = useState("");
   const [newUrl, setNewUrl] = useState("");
   const [registering, setRegistering] = useState(false);
+  const canAdmin = useMinRole("admin");
 
   async function loadAgents() {
     try {
@@ -77,9 +79,11 @@ export function AgentList() {
           <h1 className="text-2xl font-bold tracking-tight">Agents</h1>
           {!loading && <Badge variant="secondary">{agents.length}</Badge>}
         </div>
-        <Button onClick={() => setShowRegister(!showRegister)}>
-          {showRegister ? "Cancel" : "Register Agent"}
-        </Button>
+        {canAdmin && (
+          <Button onClick={() => setShowRegister(!showRegister)}>
+            {showRegister ? "Cancel" : "Register Agent"}
+          </Button>
+        )}
       </div>
 
       {error && (
@@ -88,7 +92,7 @@ export function AgentList() {
         </div>
       )}
 
-      {showRegister && (
+      {canAdmin && showRegister && (
         <Card>
           <CardHeader>
             <CardTitle>Register New Agent</CardTitle>
@@ -182,13 +186,15 @@ export function AgentList() {
                       : "—"}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDelete(agent.id)}
-                    >
-                      Delete
-                    </Button>
+                    {canAdmin && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDelete(agent.id)}
+                      >
+                        Delete
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

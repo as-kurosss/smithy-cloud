@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/StatusBadge";
+import { useMinRole } from "@/lib/auth";
 import { Play, Rocket, Square } from "lucide-react";
 
 const levelColors: Record<string, string> = {
@@ -44,6 +45,7 @@ export function ProcessDetail() {
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const logRef = useRef<HTMLDivElement>(null);
+  const canOperate = useMinRole("operator");
 
   async function load() {
     if (!id) return;
@@ -191,15 +193,17 @@ export function ProcessDetail() {
             <dt className="text-muted-foreground">Files</dt>
             <dd>{Object.keys(process.files).length}</dd>
           </dl>
-          <div className="mt-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              render={<Link to={`/processes/${process.id}/edit`} />}
-            >
-              Edit Process
-            </Button>
-          </div>
+          {canOperate && (
+            <div className="mt-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                render={<Link to={`/processes/${process.id}/edit`} />}
+              >
+                Edit Process
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -236,31 +240,37 @@ export function ProcessDetail() {
                   ))}
                 </select>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="secondary"
-                  onClick={handleDeploy}
-                  disabled={deploying || !selectedAgent}
-                >
-                  <Rocket className="h-4 w-4" />
-                  {deploying ? "Deploying..." : "Deploy"}
-                </Button>
-                <Button
-                  onClick={handleRun}
-                  disabled={running || !selectedAgent}
-                >
-                  <Play className="h-4 w-4" />
-                  {running ? "Starting..." : "Run"}
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={handleStop}
-                  disabled={stopping}
-                >
-                  <Square className="h-4 w-4" />
-                  {stopping ? "Stopping..." : "Stop"}
-                </Button>
-              </div>
+              {canOperate ? (
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="secondary"
+                    onClick={handleDeploy}
+                    disabled={deploying || !selectedAgent}
+                  >
+                    <Rocket className="h-4 w-4" />
+                    {deploying ? "Deploying..." : "Deploy"}
+                  </Button>
+                  <Button
+                    onClick={handleRun}
+                    disabled={running || !selectedAgent}
+                  >
+                    <Play className="h-4 w-4" />
+                    {running ? "Starting..." : "Run"}
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={handleStop}
+                    disabled={stopping}
+                  >
+                    <Square className="h-4 w-4" />
+                    {stopping ? "Stopping..." : "Stop"}
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Read-only access — your role does not allow deploy or run.
+                </p>
+              )}
             </>
           )}
         </CardContent>

@@ -2,14 +2,58 @@ import type { Process, Agent, ProcessRun, ProcessLog } from "./types";
 
 const BASE_URL = "/api";
 
-async function request<T>(url: string, options?: RequestInit): Promise<T> {
+const ACCESS_KEY = "smithy.access_token";
+const REFRESH_KEY = "smithy.refresh_token";
+
+export function getAccessToken(): string | null {
+  return localStorage.getItem(ACCESS_KEY);
+}
+
+export function setTokens(access: string, refresh: string): void {
+  localStorage.setItem(ACCESS_KEY, access);
+  localStorage.setItem(REFRESH_KEY, refresh);
+}
+
+export function clearTokens(): void {
+  localStorage.removeItem(ACCESS_KEY);
+  localStorage.removeItem(REFRESH_KEY);
+}
+
+async function refreshAccessToken(): Promise<boolean> {
+  const refresh = localStorage.getItem(REFRESH_KEY);
+  if (!refresh) return false;
+  try {
+    const res = await fetch(`${BASE_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refresh }),
+    });
+    if (!res.ok) return false;
+    const data = (await res.json()) as TokenPair;
+    setTokens(data.access_token, data.refresh_token);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function request<T>(url: string, options?: RequestInit, retry = true): Promise<T> {
+  const token = getAccessToken();
   const res = await fetch(`${BASE_URL}${url}`, {
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options?.headers,
     },
     ...options,
   });
+
+  if (res.status === 401 && retry && !url.startsWith("/auth/")) {
+    if (await refreshAccessToken()) {
+      return request<T>(url, options, false);
+    }
+    clearTokens();
+  }
 
   if (!res.ok) {
     const body = await res.text();
@@ -17,6 +61,68 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   }
 
   return res.json() as Promise<T>;
+}
+
+// Auth
+
+export interface TokenPair {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  role: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export function fetchAuthStatus(): Promise<{ auth_enabled: boolean }> {
+  return request<{ auth_enabled: boolean }>("/auth/status");
+}
+
+export async function loginUser(email: string, password: string): Promise<TokenPair> {
+  const body = new URLSearchParams({ username: email, password });
+  const res = await fetch(`${BASE_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  if (!res.ok) {
+    throw new Error(`Login failed (${res.status}): ${await res.text()}`);
+  }
+  const data = (await res.json()) as TokenPair;
+  setTokens(data.access_token, data.refresh_token);
+  return data;
+}
+
+export async function registerUser(email: string, password: string): Promise<TokenPair> {
+  const data = await request<TokenPair>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+  setTokens(data.access_token, data.refresh_token);
+  return data;
+}
+
+export function fetchMe(): Promise<AuthUser> {
+  return request<AuthUser>("/auth/me");
+}
+
+export async function logoutUser(): Promise<void> {
+  const refresh = localStorage.getItem(REFRESH_KEY);
+  try {
+    if (refresh) {
+      await request("/auth/logout", {
+        method: "POST",
+        body: JSON.stringify({ refresh_token: refresh }),
+      });
+    }
+  } finally {
+    clearTokens();
+  }
 }
 
 // Processes
@@ -89,14 +195,20 @@ export function stopProcess(processId: string): Promise<void> {
   return request<void>(`/processes/${processId}/stop`, { method: "POST" });
 }
 
+function wsUrl(path: string): string {
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const token = getAccessToken();
+  const query = token ? `?token=${encodeURIComponent(token)}` : "";
+  return `${protocol}//${window.location.host}${path}${query}`;
+}
+
 // Process WebSocket (channel: process id)
 export function connectProcessLogs(
   processId: string,
   onMessage: (msg: { type: string; data: unknown }) => void,
   onClose?: () => void,
 ): WebSocket {
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const ws = new WebSocket(`${protocol}//${window.location.host}/ws/processes/${processId}`);
+  const ws = new WebSocket(wsUrl(`/ws/processes/${processId}`));
 
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
@@ -116,8 +228,7 @@ export function connectRunLogs(
   onMessage: (msg: { type: string; data: unknown }) => void,
   onClose?: () => void,
 ): WebSocket {
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const ws = new WebSocket(`${protocol}//${window.location.host}/ws/runs/${runId}`);
+  const ws = new WebSocket(wsUrl(`/ws/runs/${runId}`));
 
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data);

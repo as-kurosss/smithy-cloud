@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from smithy_cloud.database import get_db
+from smithy_cloud.deps import require_level
 from smithy_cloud.models import (
     Agent,
     DeploymentStatus,
@@ -15,6 +16,7 @@ from smithy_cloud.models import (
     ProcessLog,
     ProcessRun,
     RunStatus,
+    User,
 )
 from smithy_cloud.schemas import (
     DeployRequest,
@@ -31,7 +33,11 @@ router = APIRouter(prefix="/processes", tags=["processes"])
 
 
 @router.post("", response_model=ProcessResponse, status_code=201)
-async def create_process(body: ProcessCreate, db: AsyncSession = Depends(get_db)) -> Process:
+async def create_process(
+    body: ProcessCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(require_level("operator")),
+) -> Process:
     process = Process(
         name=body.name,
         description=body.description,
@@ -51,6 +57,7 @@ async def list_processes(
     db: AsyncSession = Depends(get_db),
     limit: int = Query(default=100, le=1000),
     offset: int = Query(default=0, ge=0),
+    user: User | None = Depends(require_level("viewer")),
 ) -> list[Process]:
     result = await db.execute(
         select(Process).order_by(Process.created_at.desc()).limit(limit).offset(offset)
@@ -59,7 +66,11 @@ async def list_processes(
 
 
 @router.get("/{process_id}", response_model=ProcessResponse)
-async def get_process(process_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> Process:
+async def get_process(
+    process_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(require_level("viewer")),
+) -> Process:
     process = await db.get(Process, process_id)
     if process is None:
         raise HTTPException(status_code=404, detail="Process not found")
@@ -68,7 +79,10 @@ async def get_process(process_id: uuid.UUID, db: AsyncSession = Depends(get_db))
 
 @router.put("/{process_id}", response_model=ProcessResponse)
 async def update_process(
-    process_id: uuid.UUID, body: ProcessUpdate, db: AsyncSession = Depends(get_db)
+    process_id: uuid.UUID,
+    body: ProcessUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(require_level("operator")),
 ) -> Process:
     process = await db.get(Process, process_id)
     if process is None:
@@ -92,7 +106,11 @@ async def update_process(
 
 
 @router.delete("/{process_id}", status_code=204)
-async def delete_process(process_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> None:
+async def delete_process(
+    process_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(require_level("operator")),
+) -> None:
     process = await db.get(Process, process_id)
     if process is None:
         raise HTTPException(status_code=404, detail="Process not found")
@@ -102,7 +120,10 @@ async def delete_process(process_id: uuid.UUID, db: AsyncSession = Depends(get_d
 
 @router.post("/{process_id}/deploy", response_model=ProcessDeploymentResponse, status_code=201)
 async def deploy_process(
-    process_id: uuid.UUID, body: DeployRequest, db: AsyncSession = Depends(get_db)
+    process_id: uuid.UUID,
+    body: DeployRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(require_level("operator")),
 ) -> ProcessDeployment:
     process = await db.get(Process, process_id)
     if process is None:
@@ -127,7 +148,10 @@ async def deploy_process(
 
 @router.post("/{process_id}/run", response_model=ProcessRunResponse, status_code=201)
 async def run_process(
-    process_id: uuid.UUID, body: RunRequest, db: AsyncSession = Depends(get_db)
+    process_id: uuid.UUID,
+    body: RunRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(require_level("operator")),
 ) -> ProcessRun:
     process = await db.get(Process, process_id)
     if process is None:
@@ -151,7 +175,11 @@ async def run_process(
 
 
 @router.post("/{process_id}/stop")
-async def stop_process(process_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
+async def stop_process(
+    process_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(require_level("operator")),
+) -> dict[str, str]:
     """Request a stop: the agent picks up a ``stop`` command on its next poll."""
     result = await db.execute(
         select(ProcessRun)
@@ -179,6 +207,7 @@ async def list_process_runs(
     db: AsyncSession = Depends(get_db),
     limit: int = Query(default=100, le=1000),
     offset: int = Query(default=0, ge=0),
+    user: User | None = Depends(require_level("viewer")),
 ) -> list[ProcessRun]:
     process = await db.get(Process, process_id)
     if process is None:
@@ -197,6 +226,7 @@ async def list_process_runs(
 @router.get("/{process_id}/logs", response_model=list[ProcessLogResponse])
 async def get_process_logs(
     process_id: uuid.UUID,
+    user: User | None = Depends(require_level("viewer")),
     db: AsyncSession = Depends(get_db),
     limit: int = Query(default=1000, le=5000),
 ) -> list[ProcessLog]:
