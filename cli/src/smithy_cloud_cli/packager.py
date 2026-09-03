@@ -5,7 +5,16 @@ from __future__ import annotations
 import fnmatch
 from pathlib import Path
 
-_EXCLUDE_DIRS: set[str] = {".git", ".venv", "__pycache__", "node_modules"}
+_EXCLUDE_DIRS: set[str] = {
+    ".git",
+    ".venv",
+    "__pycache__",
+    "node_modules",
+    ".ruff_cache",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".gigacode",
+}
 _EXCLUDE_GLOBS: set[str] = {"*.pyc", "*.pyo", ".env"}
 
 

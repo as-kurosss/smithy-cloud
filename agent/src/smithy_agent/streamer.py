@@ -63,7 +63,9 @@ class LogStreamer:
             if not raw_line:
                 break  # stream closed
 
-            text = raw_line.decode(errors="replace").rstrip("\n\r")
+            # The executor forces UTF-8 on the child, so decode as UTF-8
+            # explicitly instead of the locale codepage (cp1251 → mojibake).
+            text = raw_line.decode("utf-8", errors="replace").rstrip("\n\r")
             entry = self._parse_line(text, source)
             self._buffer.append(entry)
 
@@ -80,8 +82,11 @@ class LogStreamer:
         }
         match = _STRUCTURED_RE.match(text)
         if match:
-            entry["level"] = match.group(1)
+            # Server contract is lowercase wire values ("info", not "INFO").
+            entry["level"] = match.group(1).lower()
             entry["message"] = match.group(2)
+        else:
+            entry["level"] = "info"
         return entry
 
     async def _flush(self) -> None:

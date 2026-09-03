@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -138,12 +139,20 @@ class ProcessExecutor:
             raise FileNotFoundError(f"Entry point {entry_point} not found in {proc_dir}")
 
         logger.info("Running process %s: %s %s", process_id, python_exe, entry)
+        # Force UTF-8 stdout/stderr so non-ASCII output (—, кириллица, …)
+        # survives the pipe regardless of the Windows locale codepage.
+        child_env = {
+            **os.environ,
+            "PYTHONUTF8": "1",
+            "PYTHONIOENCODING": "utf-8",
+        }
         proc = await asyncio.create_subprocess_exec(
             str(python_exe),
             str(entry),
             cwd=str(proc_dir),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            env=child_env,
         )
         self._processes[process_id] = proc
         return proc
@@ -200,5 +209,5 @@ class ProcessExecutor:
         if proc.returncode != 0:
             raise RuntimeError(
                 f"Command failed ({proc.returncode}): {' '.join(args)}\n"
-                f"stderr: {stderr.decode(errors='replace')}"
+                f"stderr: {stderr.decode('utf-8', errors='replace')}"
             )

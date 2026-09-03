@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   getProcess,
@@ -20,21 +20,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-
-const statusStyles: Record<string, string> = {
-  pending: "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 border-yellow-500/30",
-  running: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30",
-  completed: "bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/30",
-  failed: "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30",
-  stopped: "bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30",
-};
+import { StatusBadge } from "@/components/StatusBadge";
+import { Play, Rocket, Square } from "lucide-react";
 
 const levelColors: Record<string, string> = {
-  debug: "text-muted-foreground",
-  info: "text-foreground",
-  warning: "text-yellow-500",
-  error: "text-red-500",
+  debug: "text-zinc-500",
+  info: "text-green-300",
+  warning: "text-amber-300",
+  error: "text-red-400",
 };
 
 export function ProcessDetail() {
@@ -48,7 +41,9 @@ export function ProcessDetail() {
   const [running, setRunning] = useState(false);
   const [stopping, setStopping] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const logRef = useRef<HTMLDivElement>(null);
 
   async function load() {
     if (!id) return;
@@ -94,13 +89,22 @@ export function ProcessDetail() {
     return () => ws.close();
   }, [id]);
 
+  // Auto-scroll the terminal to the bottom as new logs arrive
+  useEffect(() => {
+    const el = logRef.current;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [logs]);
+
   async function handleDeploy() {
     if (!id || !selectedAgent) return;
     setDeploying(true);
     setError(null);
+    setNotice(null);
     try {
       await deployProcess(id, selectedAgent);
-      alert("Process deployed successfully!");
+      setNotice("Deployed — the agent will pick it up in a few seconds.");
     } catch (err) {
       setError(String(err));
     } finally {
@@ -112,9 +116,11 @@ export function ProcessDetail() {
     if (!id || !selectedAgent) return;
     setRunning(true);
     setError(null);
+    setNotice(null);
     try {
       const newRun = await runProcess(id, selectedAgent);
       setRuns((prev) => [newRun, ...prev]);
+      setNotice("Run started — streaming logs live below.");
     } catch (err) {
       setError(String(err));
     } finally {
@@ -144,7 +150,7 @@ export function ProcessDetail() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-enter">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">{process.name}</h1>
@@ -158,8 +164,14 @@ export function ProcessDetail() {
       </div>
 
       {error && (
-        <div className="text-sm text-red-500 p-4 bg-red-500/10 rounded-lg">
+        <div className="text-sm text-red-600 p-4 bg-red-500/10 rounded-xl border border-red-500/20">
           {error}
+        </div>
+      )}
+
+      {notice && (
+        <div className="text-sm text-emerald-800 p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/25 animate-enter">
+          {notice}
         </div>
       )}
 
@@ -224,17 +236,20 @@ export function ProcessDetail() {
                   ))}
                 </select>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
+                  variant="secondary"
                   onClick={handleDeploy}
                   disabled={deploying || !selectedAgent}
                 >
+                  <Rocket className="h-4 w-4" />
                   {deploying ? "Deploying..." : "Deploy"}
                 </Button>
                 <Button
                   onClick={handleRun}
                   disabled={running || !selectedAgent}
                 >
+                  <Play className="h-4 w-4" />
                   {running ? "Starting..." : "Run"}
                 </Button>
                 <Button
@@ -242,6 +257,7 @@ export function ProcessDetail() {
                   onClick={handleStop}
                   disabled={stopping}
                 >
+                  <Square className="h-4 w-4" />
                   {stopping ? "Stopping..." : "Stop"}
                 </Button>
               </div>
@@ -277,12 +293,7 @@ export function ProcessDetail() {
                   return (
                     <TableRow key={run.id}>
                       <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={statusStyles[run.status] ?? ""}
-                        >
-                          {run.status}
-                        </Badge>
+                        <StatusBadge status={run.status} />
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {agent?.name ?? run.agent_id}
@@ -310,29 +321,42 @@ export function ProcessDetail() {
       </Card>
 
       {/* Live Logs */}
-      <Card>
-        <CardHeader>
+      <Card className="overflow-hidden border-emerald-900/20">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle>Logs</CardTitle>
+          <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold tracking-wide text-emerald-800">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-600" />
+            </span>
+            LIVE
+          </span>
         </CardHeader>
         <CardContent>
-          <div className="max-h-96 overflow-y-auto font-mono text-xs space-y-1">
+          <div
+            ref={logRef}
+            className="terminal-scroll h-96 overflow-y-auto rounded-xl bg-zinc-950 p-4 font-mono text-xs leading-relaxed"
+          >
             {logs.length === 0 ? (
-              <div className="text-muted-foreground">No logs yet...</div>
+              <div className="text-zinc-500">
+                Waiting for logs — deploy & run the process to stream output
+                here.
+              </div>
             ) : (
               logs.map((log) => (
                 <div key={log.id} className="flex gap-3">
-                  <span className="text-muted-foreground shrink-0">
+                  <span className="shrink-0 text-zinc-500">
                     {new Date(log.timestamp).toLocaleTimeString()}
                   </span>
-                  <span className="shrink-0 w-14 text-muted-foreground">
+                  <span className="w-16 shrink-0 text-zinc-400">
                     [{log.level.toUpperCase()}]
                   </span>
                   {log.source && (
-                    <span className="shrink-0 text-blue-500 dark:text-blue-400">
+                    <span className="shrink-0 text-sky-400">
                       {log.source}
                     </span>
                   )}
-                  <span className={levelColors[log.level] ?? "text-foreground"}>
+                  <span className={levelColors[log.level] ?? "text-green-300"}>
                     {log.message}
                   </span>
                 </div>

@@ -76,7 +76,6 @@ export function ProcessEditor() {
       setEditingFilename(null);
       return;
     }
-    const content = files[editingFilename];
     const next: Record<string, string> = {};
     for (const [k, v] of Object.entries(files)) {
       next[k === editingFilename ? newName : k] = v;

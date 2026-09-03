@@ -17,6 +17,18 @@ services:
       retries: 5
     restart: unless-stopped
 
+  api:
+    build: .
+    container_name: smithy-cloud-api
+    environment:
+      DATABASE_URL: postgresql+asyncpg://smithy:smithy_dev_password@postgres:5432/smithy_cloud
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   postgres_data:
     driver: local

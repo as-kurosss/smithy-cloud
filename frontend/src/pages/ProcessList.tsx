@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Bot, Plus } from "lucide-react";
 import { fetchProcesses, deleteProcess } from "@/lib/api";
 import type { Process } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -42,36 +44,61 @@ export function ProcessList() {
       await deleteProcess(id);
       setProcesses((prev) => prev.filter((p) => p.id !== id));
     } catch (err) {
-      alert(`Failed to delete: ${err}`);
+      setError(`Failed to delete: ${err}`);
     }
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-enter">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Processes</h1>
-        <Button render={<Link to="/processes/new" />}>New Process</Button>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold tracking-tight">Processes</h1>
+          {!loading && <Badge variant="secondary">{processes.length}</Badge>}
+        </div>
+        <Button render={<Link to="/processes/new" />}>
+          <Plus className="h-4 w-4" />
+          New Process
+        </Button>
       </div>
 
       {error && (
-        <div className="text-sm text-red-500 p-4 bg-red-500/10 rounded-lg">
+        <div className="text-sm text-red-600 p-4 bg-red-500/10 rounded-xl border border-red-500/20">
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="text-sm text-muted-foreground">Loading...</div>
+        <div className="space-y-2">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="h-16 animate-pulse rounded-xl bg-emerald-900/5"
+            />
+          ))}
+        </div>
       ) : processes.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            No processes yet. Create one to get started.
+          <CardContent className="flex flex-col items-center gap-3 py-14 text-center">
+            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+              <Bot className="h-7 w-7" />
+            </span>
+            <div className="space-y-1">
+              <p className="font-semibold">No processes yet</p>
+              <p className="text-sm text-muted-foreground">
+                Create your first bot process, then deploy it to an agent.
+              </p>
+            </div>
+            <Button render={<Link to="/processes/new" />}>
+              <Plus className="h-4 w-4" />
+              New Process
+            </Button>
           </CardContent>
         </Card>
       ) : (
-        <Card>
+        <Card className="overflow-hidden py-0">
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="bg-emerald-50/60 hover:bg-emerald-50/60">
                 <TableHead>Name</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Entry Point</TableHead>
@@ -83,10 +110,15 @@ export function ProcessList() {
               {processes.map((process) => (
                 <TableRow
                   key={process.id}
-                  className="cursor-pointer"
+                  className="cursor-pointer transition-colors hover:bg-emerald-50/50"
                   onClick={() => navigate(`/processes/${process.id}`)}
                 >
-                  <TableCell className="font-medium">{process.name}</TableCell>
+                  <TableCell>
+                    <span className="flex items-center gap-2 font-medium">
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+                      {process.name}
+                    </span>
+                  </TableCell>
                   <TableCell className="text-muted-foreground">
                     {process.description || "—"}
                   </TableCell>

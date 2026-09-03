@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
+import { Cpu } from "lucide-react";
 import { fetchAgents, createAgent, deleteAgent } from "@/lib/api";
 import type { Agent } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/StatusBadge";
 import {
   Table,
   TableBody,
@@ -63,33 +66,24 @@ export function AgentList() {
       await deleteAgent(id);
       setAgents((prev) => prev.filter((a) => a.id !== id));
     } catch (err) {
-      alert(`Failed to delete: ${err}`);
+      setError(`Failed to delete: ${err}`);
     }
   }
 
-  function getStatusIndicator(status: string) {
-    const isOnline = status === "online" || status === "active";
-    return (
-      <span className="flex items-center gap-2">
-        <span
-          className={`h-2 w-2 rounded-full ${isOnline ? "bg-green-500" : "bg-red-500"}`}
-        />
-        {status}
-      </span>
-    );
-  }
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-enter">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Agents</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold tracking-tight">Agents</h1>
+          {!loading && <Badge variant="secondary">{agents.length}</Badge>}
+        </div>
         <Button onClick={() => setShowRegister(!showRegister)}>
           {showRegister ? "Cancel" : "Register Agent"}
         </Button>
       </div>
 
       {error && (
-        <div className="text-sm text-red-500 p-4 bg-red-500/10 rounded-lg">
+        <div className="text-sm text-red-600 p-4 bg-red-500/10 rounded-xl border border-red-500/20">
           {error}
         </div>
       )}
@@ -134,18 +128,34 @@ export function AgentList() {
       )}
 
       {loading ? (
-        <div className="text-sm text-muted-foreground">Loading...</div>
+        <div className="space-y-2">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="h-16 animate-pulse rounded-xl bg-emerald-900/5"
+            />
+          ))}
+        </div>
       ) : agents.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            No agents registered yet.
+          <CardContent className="flex flex-col items-center gap-3 py-14 text-center">
+            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+              <Cpu className="h-7 w-7" />
+            </span>
+            <div className="space-y-1">
+              <p className="font-semibold">No agents yet</p>
+              <p className="text-sm text-muted-foreground">
+                Register an agent below, then point it at the orchestrator to go
+                online.
+              </p>
+            </div>
           </CardContent>
         </Card>
       ) : (
-        <Card>
+        <Card className="overflow-hidden py-0">
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="bg-emerald-50/60 hover:bg-emerald-50/60">
                 <TableHead>Name</TableHead>
                 <TableHead>URL</TableHead>
                 <TableHead>Status</TableHead>
@@ -155,13 +165,16 @@ export function AgentList() {
             </TableHeader>
             <TableBody>
               {agents.map((agent) => (
-                <TableRow key={agent.id}>
+                <TableRow
+                  key={agent.id}
+                  className="transition-colors hover:bg-emerald-50/50"
+                >
                   <TableCell className="font-medium">{agent.name}</TableCell>
                   <TableCell className="font-mono text-sm text-muted-foreground">
                     {agent.url}
                   </TableCell>
                   <TableCell>
-                    {getStatusIndicator(agent.status)}
+                    <StatusBadge status={agent.status} />
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {agent.last_heartbeat

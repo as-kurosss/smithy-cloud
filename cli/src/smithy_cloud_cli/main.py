@@ -88,6 +88,102 @@ def deploy(ctx: click.Context, path: str, name: str, description: str, entry_poi
 
 
 # ---------------------------------------------------------------------------
+# update
+# ---------------------------------------------------------------------------
+
+
+@cli.command()
+@click.argument("process_id")
+@click.argument("path", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "--entry",
+    "entry_point",
+    default="main.py",
+    show_default=True,
+    help="Entry-point filename.",
+)
+@click.option(
+    "--agent",
+    "agent_ref",
+    default=None,
+    help="Agent name or ID to deploy to (implies --deploy).",
+)
+@click.option(
+    "--deploy/--no-deploy",
+    default=False,
+    show_default=True,
+    help="Deploy the updated bundle to the agent given via --agent.",
+)
+@click.pass_context
+def update(
+    ctx: click.Context,
+    process_id: str,
+    path: str,
+    entry_point: str,
+    agent_ref: str | None,
+    deploy: bool,
+) -> None:
+    """Re-pack a directory and update an existing process in place."""
+    if deploy and not agent_ref:
+        console.print("[red]--deploy requires --agent <name|id>.[/red]")
+        raise SystemExit(2)
+
+    console.print(f"[bold]Packing[/bold] {path} …")
+    files = read_directory(path)
+    if not files:
+        console.print("[red]No files found in the given directory.[/red]")
+        raise SystemExit(1)
+
+    requirements = read_requirements(path)
+    console.print(f"  {len(files)} file(s), {len(requirements)} requirement(s)")
+
+    async def _update() -> dict[str, Any]:
+        async with _client_ctx(ctx) as client:
+            return await client.update_process(
+                process_id,
+                files=files,
+                requirements=requirements,
+                entry_point=entry_point,
+            )
+
+    try:
+        asyncio.run(_update())
+    except Exception as err:
+        console.print(f"[red]Update failed:[/red] {err}")
+        raise SystemExit(1)
+    console.print(f"[green]✓ Process updated[/green]  id={process_id}")
+
+    if not agent_ref:
+        return
+
+    async def _deploy() -> tuple[str, dict[str, Any]]:
+        async with _client_ctx(ctx) as client:
+            agents = await client.list_agents()
+            match = next(
+                (
+                    a
+                    for a in agents
+                    if a.get("id") == agent_ref or a.get("name") == agent_ref
+                ),
+                None,
+            )
+            if match is None:
+                raise LookupError(f"no agent matching {agent_ref!r}")
+            agent_id = str(match["id"])
+            return agent_id, await client.deploy(process_id, agent_id)
+
+    try:
+        agent_id, _ = asyncio.run(_deploy())
+    except LookupError as err:
+        console.print(f"[red]Deploy failed:[/red] {err}")
+        raise SystemExit(1)
+    except Exception as err:
+        console.print(f"[red]Deploy failed:[/red] {err}")
+        raise SystemExit(1)
+    console.print(f"[green]✓ Deploy triggered[/green]  agent={agent_id}")
+
+
+# ---------------------------------------------------------------------------
 # processes
 # ---------------------------------------------------------------------------
 
