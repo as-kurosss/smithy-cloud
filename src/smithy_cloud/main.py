@@ -15,7 +15,7 @@ from smithy_cloud.config import get_settings
 from smithy_cloud.database import async_session_factory, engine, get_db
 from smithy_cloud.deps import authorize_websocket
 from smithy_cloud.models import Base, User
-from smithy_cloud.routes import agents, auth, internal, processes
+from smithy_cloud.routes import agents, auth, internal, processes, queues
 from smithy_cloud.security import hash_password
 from smithy_cloud.websocket import manager
 
@@ -68,6 +68,7 @@ app.include_router(agents.router, prefix="/api")
 app.include_router(processes.router, prefix="/api")
 app.include_router(internal.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
+app.include_router(queues.router, prefix="/api")
 
 
 @app.websocket("/ws/runs/{run_id}")

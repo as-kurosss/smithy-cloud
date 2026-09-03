@@ -11,6 +11,10 @@ os.environ.setdefault(
     "postgresql+asyncpg://smithy:smithy_dev_password@localhost:5432/smithy_cloud_test",
 )
 os.environ.setdefault("DEV_CREATE_TABLES", "false")
+# The app reads the developer's .env (which may enable auth for the live
+# deployment); tests must stay hermetic, so auth stays off unless a test
+# explicitly enables it (see test_auth.enable_auth).
+os.environ.setdefault("AUTH_ENABLED", "false")
 
 import asyncpg  # noqa: E402
 import httpx  # noqa: E402

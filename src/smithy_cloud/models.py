@@ -5,8 +5,18 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -57,6 +67,14 @@ class CommandType(StrEnum):
     DEPLOY = "deploy"
     RUN = "run"
     STOP = "stop"
+
+
+class QueueItemStatus(StrEnum):
+    NEW = "new"
+    IN_PROGRESS = "in_progress"
+    SUCCESS = "success"
+    BUSINESS_FAILED = "business_failed"
+    SYSTEM_FAILED = "system_failed"
 
 
 class Agent(Base):
@@ -197,6 +215,59 @@ class RefreshToken(Base):
     )
 
     user: Mapped[User] = relationship(back_populates="refresh_tokens")
+
+
+class Queue(Base):
+    __tablename__ = "queues"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    max_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+
+    items: Mapped[list[QueueItem]] = relationship(
+        back_populates="queue", cascade="all, delete-orphan"
+    )
+
+
+class QueueItem(Base):
+    __tablename__ = "queue_items"
+    __table_args__ = (
+        # NULL keys never collide in Postgres — only real keys are deduplicated.
+        UniqueConstraint("queue_id", "idempotency_key", name="uq_queue_items_queue_key"),
+        Index("ix_queue_items_queue_status", "queue_id", "status"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    queue_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("queues.id", ondelete="CASCADE"), nullable=False
+    )
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    idempotency_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=QueueItemStatus.NEW.value
+    )
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    run_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("process_runs.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False
+    )
+
+    queue: Mapped[Queue] = relationship(back_populates="items")
 
 
 class ProcessLog(Base):

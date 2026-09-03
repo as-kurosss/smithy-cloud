@@ -12,6 +12,7 @@ from smithy_cloud.models import (
     DeploymentStatus,
     LogLevel,
     LogSource,
+    QueueItemStatus,
     RunStatus,
 )
 
@@ -196,3 +197,76 @@ class ProcessLogResponse(BaseModel):
     source: LogSource
     message: str
     details: dict[str, Any] | None
+
+
+# --- Queue schemas (transactional items, REFramework-style) ---
+
+
+class QueueCreate(BaseModel):
+    name: str
+    max_attempts: int = 3
+
+
+class QueueCounts(BaseModel):
+    new: int = 0
+    in_progress: int = 0
+    success: int = 0
+    business_failed: int = 0
+    system_failed: int = 0
+
+
+class QueueResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    max_attempts: int
+    created_at: datetime
+
+
+class QueueWithCounts(QueueResponse):
+    counts: QueueCounts
+
+
+class QueueItemAdd(BaseModel):
+    payload: dict[str, Any]
+    idempotency_key: str | None = None
+
+
+class QueueItemsAddRequest(BaseModel):
+    items: list[QueueItemAdd]
+
+
+class QueueItemCreated(BaseModel):
+    id: uuid.UUID
+    status: QueueItemStatus
+    attempts: int
+
+
+class ClaimRequest(BaseModel):
+    run_id: uuid.UUID
+    lease_seconds: int = 300
+
+
+class ClaimedItem(BaseModel):
+    id: uuid.UUID
+    payload: dict[str, Any]
+    attempts: int
+    lease_expires_at: datetime
+
+
+class ClaimResponse(BaseModel):
+    item: ClaimedItem | None
+
+
+class CompleteRequest(BaseModel):
+    run_id: uuid.UUID
+    status: Literal["success", "business_failed", "system_failed"]
+    error: str | None = None
+    result: dict[str, Any] | None = None
+
+
+class QueueItemState(BaseModel):
+    id: uuid.UUID
+    status: QueueItemStatus
+    attempts: int
