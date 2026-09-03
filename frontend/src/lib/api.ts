@@ -55,12 +55,15 @@ async function request<T>(url: string, options?: RequestInit, retry = true): Pro
     clearTokens();
   }
 
+  // DELETE endpoints answer 204 with an empty body — there is nothing to parse.
+  const text = await res.text();
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`API error ${res.status}: ${body}`);
+    throw new Error(`API error ${res.status}: ${text}`);
   }
-
-  return res.json() as Promise<T>;
+  if (!text) {
+    return undefined as T;
+  }
+  return JSON.parse(text) as T;
 }
 
 // Auth
