@@ -81,7 +81,7 @@ export function AgentList() {
         </div>
         {canAdmin && (
           <Button onClick={() => setShowRegister(!showRegister)}>
-            {showRegister ? "Cancel" : "Register Agent"}
+            {showRegister ? "Cancel" : "New Agent"}
           </Button>
         )}
       </div>
@@ -95,7 +95,7 @@ export function AgentList() {
       {canAdmin && showRegister && (
         <Card>
           <CardHeader>
-            <CardTitle>Register New Agent</CardTitle>
+            <CardTitle>New Agent</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleRegister} className="space-y-4">
@@ -124,7 +124,7 @@ export function AgentList() {
                 />
               </div>
               <Button type="submit" disabled={registering}>
-                {registering ? "Registering..." : "Register"}
+                {registering ? "Creating..." : "Create"}
               </Button>
             </form>
           </CardContent>

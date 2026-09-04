@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Bot, Plus } from "lucide-react";
+import { Bot } from "lucide-react";
 import { fetchProcesses, deleteProcess } from "@/lib/api";
 import type { Process } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -59,7 +59,6 @@ export function ProcessList() {
         </div>
         {canWrite && (
           <Button render={<Link to="/processes/new" />}>
-            <Plus className="h-4 w-4" />
             New Process
           </Button>
         )}
@@ -94,7 +93,6 @@ export function ProcessList() {
             </div>
             {canWrite && (
               <Button render={<Link to="/processes/new" />}>
-                <Plus className="h-4 w-4" />
                 New Process
               </Button>
             )}

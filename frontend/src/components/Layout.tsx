@@ -1,17 +1,18 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { Bot, LogOut } from "lucide-react";
+import { useState } from "react";
+import { Bot, Cpu, Inbox, Layers, LogOut, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 
 const navItems = [
-  { to: "/processes", label: "Processes" },
-  { to: "/agents", label: "Agents" },
-  { to: "/queues", label: "Queues" },
+  { to: "/processes", label: "Processes", icon: Layers },
+  { to: "/agents", label: "Agents", icon: Cpu },
+  { to: "/queues", label: "Queues", icon: Inbox },
 ];
 
 function linkClass({ isActive }: { isActive: boolean }) {
   return cn(
-    "rounded-full px-4 py-1.5 text-sm font-medium transition-all",
+    "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all",
     isActive
       ? "bg-emerald-600 text-white shadow-sm shadow-emerald-600/40"
       : "text-muted-foreground hover:bg-emerald-600/10 hover:text-emerald-900",
@@ -21,12 +22,60 @@ function linkClass({ isActive }: { isActive: boolean }) {
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, authEnabled, logout } = useAuth();
   const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+
+  const initials = user?.email?.slice(0, 2).toUpperCase() ?? "··";
+
+  async function handleLogout() {
+    await logout();
+    navigate("/login");
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-100/70 via-background to-background text-foreground">
-      <header className="sticky top-0 z-10 border-b border-emerald-900/10 bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-6">
-          <Link to="/processes" className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-700 text-white shadow-md shadow-emerald-600/30">
+      {/* Mobile top bar */}
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-emerald-900/10 bg-background/80 px-4 backdrop-blur-md md:hidden">
+        <button
+          type="button"
+          aria-label="Open menu"
+          onClick={() => setOpen(true)}
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-all hover:bg-emerald-600/10 hover:text-emerald-900"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <Link to="/processes" className="flex items-center gap-2">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-700 text-white shadow-md shadow-emerald-600/30">
+            <Bot className="h-4 w-4" />
+          </span>
+          <span className="text-[15px] font-bold tracking-tight">
+            Smithy <span className="text-emerald-600">Cloud</span>
+          </span>
+        </Link>
+      </header>
+
+      {/* Overlay for mobile drawer */}
+      {open && (
+        <div
+          className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm md:hidden"
+          onClick={() => setOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-emerald-900/10 bg-background/90 backdrop-blur-md transition-transform duration-200",
+          open ? "translate-x-0" : "-translate-x-full",
+          "md:translate-x-0",
+        )}
+      >
+        <div className="flex items-center gap-2.5 px-4 pt-5">
+          <Link
+            to="/processes"
+            className="flex flex-1 items-center gap-2.5"
+            onClick={() => setOpen(false)}
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-700 text-white shadow-md shadow-emerald-600/30">
               <Bot className="h-5 w-5" />
             </span>
             <span className="leading-tight">
@@ -38,42 +87,68 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </span>
             </span>
           </Link>
-          {(!authEnabled || user) && (
-            <nav className="ml-6 flex items-center gap-1">
-              {navItems.map((item) => (
-                <NavLink key={item.to} to={item.to} className={linkClass}>
-                  {item.label}
-                </NavLink>
-              ))}
-            </nav>
-          )}
-          <div className="ml-auto flex items-center gap-2">
-            {authEnabled && user && (
-              <>
-                <span className="hidden text-sm text-muted-foreground sm:block">{user.email}</span>
-                <span className="rounded-full bg-emerald-600/10 px-2.5 py-0.5 text-xs font-semibold capitalize text-emerald-700">
-                  {user.role}
-                </span>
-                <button
-                  type="button"
-                  title="Sign out"
-                  onClick={async () => {
-                    await logout();
-                    navigate("/login");
-                  }}
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-all hover:bg-emerald-600/10 hover:text-emerald-900"
-                >
-                  <LogOut className="h-4 w-4" />
-                </button>
-              </>
-            )}
-          </div>
+          <button
+            type="button"
+            aria-label="Close menu"
+            onClick={() => setOpen(false)}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-all hover:bg-emerald-600/10 hover:text-emerald-900 md:hidden"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
-      </header>
-      <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
-      <footer className="mx-auto max-w-6xl px-6 pb-6 text-center text-xs text-muted-foreground">
-        Smithy Cloud · live process orchestration
-      </footer>
+
+        {authEnabled && user && (
+          <div className="mx-4 mt-4 flex items-center gap-2.5 rounded-xl border border-emerald-900/10 bg-emerald-600/5 p-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-700 text-xs font-bold text-white">
+              {initials}
+            </span>
+            <span className="min-w-0 leading-tight">
+              <span className="block truncate text-[13px] font-semibold">
+                {user.email}
+              </span>
+              <span className="block text-[11px] font-semibold capitalize text-emerald-700">
+                {user.role}
+              </span>
+            </span>
+          </div>
+        )}
+
+        {(!authEnabled || user) && (
+          <nav className="flex flex-col gap-1 px-4 pt-4">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={linkClass}
+                onClick={() => setOpen(false)}
+              >
+                <item.icon className="h-4 w-4 shrink-0" />
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+        )}
+
+        <div className="mt-auto px-4 pb-5">
+          {authEnabled && user && (
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-emerald-600/10 hover:text-emerald-900"
+            >
+              <LogOut className="h-4 w-4 shrink-0" />
+              Sign out
+            </button>
+          )}
+          <p className="mt-3 px-3 text-[11px] text-muted-foreground">
+            Smithy Cloud · live orchestration
+          </p>
+        </div>
+      </aside>
+
+      <main className="mx-auto max-w-6xl px-6 py-8 md:ml-64">
+        {children}
+      </main>
     </div>
   );
 }
