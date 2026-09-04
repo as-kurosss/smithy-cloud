@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Play } from "lucide-react";
-import { fetchProcesses, fetchRuns } from "@/lib/api";
-import type { Process, ProcessRunEntry } from "@/lib/types";
+import { fetchAgents, fetchProcesses, fetchRuns, runProcess } from "@/lib/api";
+import type { Agent, Process, ProcessRunEntry } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMinRole } from "@/lib/auth";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
   Table,
@@ -30,7 +31,13 @@ const STATUSES = [
 export function RunsPage() {
   const [searchParams] = useSearchParams();
   const [processes, setProcesses] = useState<Process[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [runs, setRuns] = useState<ProcessRunEntry[]>([]);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newProcess, setNewProcess] = useState("");
+  const [newAgent, setNewAgent] = useState("");
+  const [creating, setCreating] = useState(false);
+  const canOperator = useMinRole("operator");
   const [processId, setProcessId] = useState<string>(
     searchParams.get("process_id") ?? "all",
   );
@@ -55,9 +62,21 @@ export function RunsPage() {
   }, []);
 
   useEffect(() => {
-    fetchProcesses()
-      .then(setProcesses)
-      .catch((err) => setError(String(err)));
+    async function loadOptions() {
+      try {
+        const [processList, agentList] = await Promise.all([
+          fetchProcesses(),
+          fetchAgents(),
+        ]);
+        setProcesses(processList);
+        setAgents(agentList);
+        if (processList.length > 0) setNewProcess(processList[0].id);
+        if (agentList.length > 0) setNewAgent(agentList[0].id);
+      } catch (err) {
+        setError(String(err));
+      }
+    }
+    loadOptions();
   }, []);
 
   useEffect(() => {
@@ -67,6 +86,22 @@ export function RunsPage() {
     const timer = setInterval(() => load(processId, status), 10000);
     return () => clearInterval(timer);
   }, [processId, status, live, load]);
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newProcess || !newAgent) return;
+    setCreating(true);
+    setError(null);
+    try {
+      await runProcess(newProcess, newAgent);
+      setShowCreate(false);
+      await load(processId, status);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setCreating(false);
+    }
+  }
 
   return (
     <div className="space-y-6 animate-enter">
@@ -90,6 +125,11 @@ export function RunsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {canOperator && (
+            <Button size="sm" onClick={() => setShowCreate(!showCreate)}>
+              {showCreate ? "Cancel" : "New Run"}
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -114,6 +154,59 @@ export function RunsPage() {
         <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-600">
           {error}
         </div>
+      )}
+
+      {canOperator && showCreate && (
+        <Card>
+          <CardHeader>
+            <CardTitle>New Run</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label htmlFor="run-new-process" className="text-sm font-medium">
+                    Process
+                  </label>
+                  <select
+                    id="run-new-process"
+                    value={newProcess}
+                    onChange={(e) => setNewProcess(e.target.value)}
+                    required
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none"
+                  >
+                    {processes.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="run-new-agent" className="text-sm font-medium">
+                    Agent
+                  </label>
+                  <select
+                    id="run-new-agent"
+                    value={newAgent}
+                    onChange={(e) => setNewAgent(e.target.value)}
+                    required
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none"
+                  >
+                    {agents.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <Button type="submit" disabled={creating}>
+                {creating ? "Starting..." : "Run"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       )}
 
       <div className="flex flex-wrap gap-3">
