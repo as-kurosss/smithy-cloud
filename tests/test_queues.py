@@ -346,3 +346,49 @@ async def test_unknown_queue_is_404(client: httpx.AsyncClient) -> None:
         "/api/queues/no-such-queue/items", json={"items": [{"payload": {}}]}
     )
     assert resp.status_code == 404, resp.text
+
+
+async def test_claim_unknown_run_is_404(client: httpx.AsyncClient) -> None:
+    agent_id, headers = await _register_agent(client, "ghost")
+    await _create_queue(client, "ghosted")
+    await _add_items(client, "ghosted", [{"payload": {"n": 1}}])
+
+    resp = await _claim(
+        client, agent_id, "ghosted", str(uuid.uuid4()), headers
+    )
+    assert resp.status_code == 404, resp.text
+
+
+async def test_delete_queue_cascades_items(client: httpx.AsyncClient) -> None:
+    agent_id, headers = await _register_agent(client, "janitor")
+    await _create_queue(client, "doomed")
+    items = await _add_items(client, "doomed", [{"payload": {"a": 1}}])
+    assert len(items) == 1
+    run_id = await _create_run(client, agent_id)
+    claimed = await _claim(client, agent_id, "doomed", run_id, headers)
+    assert claimed.json()["item"] is not None
+
+    deleted = await client.delete("/api/queues/doomed")
+    assert deleted.status_code == 204, deleted.text
+
+    resp = await client.get("/api/queues")
+    assert all(q["name"] != "doomed" for q in resp.json())
+
+    again = await client.delete("/api/queues/doomed")
+    assert again.status_code == 404
+
+
+async def test_queue_create_and_claim_validate_bounds(
+    client: httpx.AsyncClient,
+) -> None:
+    bad = await client.post("/api/queues", json={"name": "zero", "max_attempts": 0})
+    assert bad.status_code == 422, bad.text
+
+    agent_id, headers = await _register_agent(client, "bounded")
+    await _create_queue(client, "bounded")
+    await _add_items(client, "bounded", [{"payload": {"n": 1}}])
+    run_id = await _create_run(client, agent_id)
+    claimed = await _claim(
+        client, agent_id, "bounded", run_id, headers, lease_seconds=0
+    )
+    assert claimed.status_code == 422, claimed.text

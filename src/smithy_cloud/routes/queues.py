@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from smithy_cloud.database import get_db
 from smithy_cloud.deps import require_level
-from smithy_cloud.models import Queue, QueueItem, QueueItemStatus, User
+from smithy_cloud.models import ProcessRun, Queue, QueueItem, QueueItemStatus, User
 from smithy_cloud.routes.agents import _authenticate
 from smithy_cloud.schemas import (
     ClaimedItem,
@@ -101,6 +101,18 @@ async def list_queues(
     ]
 
 
+@router.delete("/queues/{name}", status_code=204)
+async def delete_queue(
+    name: str,
+    db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(require_level("operator")),
+) -> None:
+    """Delete a queue; its items cascade."""
+    queue = await _get_queue_or_404(name, db)
+    await db.delete(queue)
+    await db.commit()
+
+
 @router.post("/queues/{name}/items", response_model=list[QueueItemCreated], status_code=201)
 async def add_queue_items(
     name: str,
@@ -161,6 +173,9 @@ async def claim_queue_item(
     """Atomically expire stale leases, then claim one new item (SKIP LOCKED)."""
     await _authenticate(agent_id, authorization, db)
     queue = await _get_queue_or_404(name, db)
+    run = await db.get(ProcessRun, body.run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Run not found")
     now = datetime.now(UTC)
     await db.execute(
         update(QueueItem)

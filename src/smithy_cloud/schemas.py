@@ -204,7 +204,7 @@ class ProcessLogResponse(BaseModel):
 
 class QueueCreate(BaseModel):
     name: str
-    max_attempts: int = 3
+    max_attempts: int = Field(default=3, ge=1)
 
 
 class QueueCounts(BaseModel):
@@ -245,7 +245,7 @@ class QueueItemCreated(BaseModel):
 
 class ClaimRequest(BaseModel):
     run_id: uuid.UUID
-    lease_seconds: int = 300
+    lease_seconds: int = Field(default=300, ge=1)
 
 
 class ClaimedItem(BaseModel):
