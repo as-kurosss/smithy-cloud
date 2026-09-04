@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager, suppress
@@ -15,11 +17,16 @@ from smithy_cloud.config import get_settings
 from smithy_cloud.database import async_session_factory, engine, get_db
 from smithy_cloud.deps import authorize_websocket
 from smithy_cloud.models import Base, User
-from smithy_cloud.routes import agents, auth, internal, logs, processes, queues
+from smithy_cloud.routes import agents, auth, internal, logs, processes, queues, triggers
+from smithy_cloud.routes.triggers import fire_due_triggers
 from smithy_cloud.security import hash_password
 from smithy_cloud.websocket import manager
 
 settings = get_settings()
+
+logger = logging.getLogger(__name__)
+
+TRIGGER_POLL_SECONDS = 15
 
 
 async def _seed_bootstrap_admin() -> None:
@@ -36,6 +43,21 @@ async def _seed_bootstrap_admin() -> None:
         await session.commit()
 
 
+async def _trigger_poller() -> None:
+    """Fire due triggers every poll; late ones catch up — none are skipped."""
+    while True:
+        try:
+            async with async_session_factory() as session:
+                fired = await fire_due_triggers(session)
+            if fired:
+                logger.info("Trigger poller fired %d trigger(s)", fired)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Trigger poller iteration failed")
+        await asyncio.sleep(TRIGGER_POLL_SECONDS)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Alembic owns the schema; create_all only when DEV_CREATE_TABLES=true."""
@@ -45,7 +67,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
     await _seed_bootstrap_admin()
+    poller = asyncio.create_task(_trigger_poller())
     yield
+    poller.cancel()
+    with suppress(asyncio.CancelledError):
+        await poller
     await engine.dispose()
 
 
@@ -70,6 +96,7 @@ app.include_router(internal.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(queues.router, prefix="/api")
 app.include_router(logs.router, prefix="/api")
+app.include_router(triggers.router, prefix="/api")
 
 
 @app.websocket("/ws/runs/{run_id}")

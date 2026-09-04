@@ -7,6 +7,7 @@ import type {
   Queue,
   QueueWithCounts,
   QueueItemCreated,
+  Trigger,
 } from "./types";
 
 const BASE_URL = "/api";
@@ -224,6 +225,38 @@ export function addQueueItems(
 
 export function deleteQueue(name: string): Promise<void> {
   return request<void>(`/queues/${encodeURIComponent(name)}`, { method: "DELETE" });
+}
+
+// Triggers (one-shot scheduled runs)
+export function fetchTriggers(): Promise<Trigger[]> {
+  return request<Trigger[]>("/triggers");
+}
+
+export function createTrigger(payload: {
+  name: string;
+  agent_id: string;
+  process_id: string;
+  run_at: string;
+  enabled?: boolean;
+}): Promise<Trigger> {
+  return request<Trigger>("/triggers", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateTrigger(
+  id: string,
+  payload: { enabled?: boolean; run_at?: string },
+): Promise<Trigger> {
+  return request<Trigger>(`/triggers/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteTrigger(id: string): Promise<void> {
+  return request<void>(`/triggers/${id}`, { method: "DELETE" });
 }
 
 // Deployment & Run

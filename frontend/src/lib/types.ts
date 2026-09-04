@@ -72,3 +72,18 @@ export interface QueueItemCreated {
   status: string;
   attempts: number;
 }
+
+export interface Trigger {
+  id: string;
+  name: string;
+  agent_id: string;
+  process_id: string;
+  agent_name: string;
+  process_name: string;
+  run_at: string;
+  enabled: boolean;
+  fired_at: string | null;
+  last_run_id: string | null;
+  created_at: string;
+  status: "scheduled" | "fired" | "disabled";
+}

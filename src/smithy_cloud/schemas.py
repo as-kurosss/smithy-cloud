@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
 
 from smithy_cloud.models import (
     AgentStatus,
@@ -204,6 +204,39 @@ class ProcessLogEntry(ProcessLogResponse):
 
     process_id: uuid.UUID
     process_name: str
+
+
+# --- Trigger schemas (one-shot scheduled runs) ---
+
+
+class TriggerCreate(BaseModel):
+    name: str
+    agent_id: uuid.UUID
+    process_id: uuid.UUID
+    run_at: AwareDatetime
+    enabled: bool = True
+
+
+class TriggerUpdate(BaseModel):
+    enabled: bool | None = None
+    run_at: AwareDatetime | None = None
+
+
+class TriggerResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    agent_id: uuid.UUID
+    process_id: uuid.UUID
+    agent_name: str
+    process_name: str
+    run_at: datetime
+    enabled: bool
+    fired_at: datetime | None
+    last_run_id: uuid.UUID | None
+    created_at: datetime
+    status: Literal["scheduled", "fired", "disabled"]
 
 
 # --- Queue schemas (transactional items, REFramework-style) ---
