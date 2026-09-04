@@ -207,6 +207,13 @@ class ProcessLogEntry(ProcessLogResponse):
     process_name: str
 
 
+class ProcessRunEntry(ProcessRunResponse):
+    """A run annotated with process/agent names (for the global Runs page)."""
+
+    process_name: str
+    agent_name: str
+
+
 # --- Trigger schemas (one-shot scheduled runs) ---
 
 

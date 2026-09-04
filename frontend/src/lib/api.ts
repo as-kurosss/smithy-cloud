@@ -2,6 +2,7 @@ import type {
   Process,
   Agent,
   ProcessRun,
+  ProcessRunEntry,
   ProcessLog,
   ProcessLogEntry,
   Queue,
@@ -167,6 +168,19 @@ export function deleteProcess(id: string): Promise<void> {
 
 export function fetchProcessRuns(processId: string): Promise<ProcessRun[]> {
   return request<ProcessRun[]>(`/processes/${processId}/runs`);
+}
+
+export function fetchRuns(options?: {
+  processId?: string;
+  status?: string;
+  limit?: number;
+}): Promise<ProcessRunEntry[]> {
+  const params = new URLSearchParams({
+    limit: String(options?.limit ?? 200),
+  });
+  if (options?.processId) params.set("process_id", options.processId);
+  if (options?.status) params.set("status", options.status);
+  return request<ProcessRunEntry[]>(`/runs?${params.toString()}`);
 }
 
 export function fetchProcessLogs(processId: string): Promise<ProcessLog[]> {

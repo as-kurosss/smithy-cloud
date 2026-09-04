@@ -33,6 +33,11 @@ export interface ProcessRun {
   error: string | null;
 }
 
+export interface ProcessRunEntry extends ProcessRun {
+  process_name: string;
+  agent_name: string;
+}
+
 export interface ProcessLog {
   id: string;
   run_id: string;

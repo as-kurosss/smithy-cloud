@@ -5,6 +5,7 @@ import { ProcessList } from "@/pages/ProcessList";
 import { ProcessEditor } from "@/pages/ProcessEditor";
 import { ProcessDetail } from "@/pages/ProcessDetail";
 import { AgentList } from "@/pages/AgentList";
+import { RunsPage } from "@/pages/RunsPage";
 import { QueuesPage } from "@/pages/QueuesPage";
 import { TriggersPage } from "@/pages/TriggersPage";
 import { LogsPage } from "@/pages/LogsPage";
@@ -75,6 +76,14 @@ export default function App() {
                   <RequireRole level="operator">
                     <ProcessEditor />
                   </RequireRole>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/runs"
+              element={
+                <RequireAuth>
+                  <RunsPage />
                 </RequireAuth>
               }
             />
