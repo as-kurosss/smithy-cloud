@@ -42,3 +42,28 @@ export interface ProcessLog {
   message: string;
   details: Record<string, unknown> | null;
 }
+
+export interface Queue {
+  id: string;
+  name: string;
+  max_attempts: number;
+  created_at: string;
+}
+
+export interface QueueCounts {
+  new: number;
+  in_progress: number;
+  success: number;
+  business_failed: number;
+  system_failed: number;
+}
+
+export interface QueueWithCounts extends Queue {
+  counts: QueueCounts;
+}
+
+export interface QueueItemCreated {
+  id: string;
+  status: string;
+  attempts: number;
+}

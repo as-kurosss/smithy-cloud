@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 const navItems = [
   { to: "/processes", label: "Processes" },
   { to: "/agents", label: "Agents" },
+  { to: "/queues", label: "Queues" },
 ];
 
 function linkClass({ isActive }: { isActive: boolean }) {

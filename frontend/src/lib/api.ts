@@ -1,4 +1,12 @@
-import type { Process, Agent, ProcessRun, ProcessLog } from "./types";
+import type {
+  Process,
+  Agent,
+  ProcessRun,
+  ProcessLog,
+  Queue,
+  QueueWithCounts,
+  QueueItemCreated,
+} from "./types";
 
 const BASE_URL = "/api";
 
@@ -177,6 +185,38 @@ export function createAgent(payload: Omit<Agent, "id" | "status" | "last_heartbe
 
 export function deleteAgent(id: string): Promise<void> {
   return request<void>(`/agents/${id}`, { method: "DELETE" });
+}
+
+// Queues (transactional, REFramework-style)
+export function fetchQueues(): Promise<QueueWithCounts[]> {
+  return request<QueueWithCounts[]>("/queues");
+}
+
+export function createQueue(payload: {
+  name: string;
+  max_attempts: number;
+}): Promise<Queue> {
+  return request<Queue>("/queues", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function addQueueItems(
+  name: string,
+  items: Array<{
+    payload: Record<string, unknown>;
+    idempotency_key?: string | null;
+  }>,
+): Promise<QueueItemCreated[]> {
+  return request<QueueItemCreated[]>(`/queues/${encodeURIComponent(name)}/items`, {
+    method: "POST",
+    body: JSON.stringify({ items }),
+  });
+}
+
+export function deleteQueue(name: string): Promise<void> {
+  return request<void>(`/queues/${encodeURIComponent(name)}`, { method: "DELETE" });
 }
 
 // Deployment & Run

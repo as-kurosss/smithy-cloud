@@ -5,6 +5,7 @@ import { ProcessList } from "@/pages/ProcessList";
 import { ProcessEditor } from "@/pages/ProcessEditor";
 import { ProcessDetail } from "@/pages/ProcessDetail";
 import { AgentList } from "@/pages/AgentList";
+import { QueuesPage } from "@/pages/QueuesPage";
 import { Login } from "@/pages/Login";
 import { AuthProvider, useAuth, useMinRole } from "@/lib/auth";
 
@@ -80,6 +81,14 @@ export default function App() {
               element={
                 <RequireAuth>
                   <AgentList />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/queues"
+              element={
+                <RequireAuth>
+                  <QueuesPage />
                 </RequireAuth>
               }
             />
