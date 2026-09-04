@@ -305,6 +305,23 @@ class Trigger(Base):
     )
 
 
+class Asset(Base):
+    """Named key-value store. Rows flagged ``immutable`` reject update/delete."""
+
+    __tablename__ = "assets"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    value: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    immutable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False
+    )
+
+
 class ProcessLog(Base):
     __tablename__ = "process_logs"
 

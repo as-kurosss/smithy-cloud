@@ -96,3 +96,12 @@ export interface Trigger {
   created_at: string;
   status: "scheduled" | "fired" | "disabled";
 }
+
+export interface Asset {
+  id: string;
+  name: string;
+  value: string;
+  immutable: boolean;
+  created_at: string;
+  updated_at: string;
+}

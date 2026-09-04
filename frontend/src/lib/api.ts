@@ -1,6 +1,7 @@
 import type {
   Process,
   Agent,
+  Asset,
   ProcessRun,
   ProcessRunEntry,
   ProcessLog,
@@ -274,6 +275,38 @@ export function updateTrigger(
 
 export function deleteTrigger(id: string): Promise<void> {
   return request<void>(`/triggers/${id}`, { method: "DELETE" });
+}
+
+// Assets (named key-value store)
+export function fetchAssets(): Promise<Asset[]> {
+  return request<Asset[]>("/assets");
+}
+
+export function createAsset(payload: {
+  name: string;
+  value: string;
+  immutable?: boolean;
+}): Promise<Asset> {
+  return request<Asset>("/assets", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateAsset(
+  name: string,
+  payload: { value?: string; immutable?: boolean },
+): Promise<Asset> {
+  return request<Asset>(`/assets/${encodeURIComponent(name)}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteAsset(name: string): Promise<void> {
+  return request<void>(`/assets/${encodeURIComponent(name)}`, {
+    method: "DELETE",
+  });
 }
 
 // Deployment & Run

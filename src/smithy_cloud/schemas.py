@@ -359,3 +359,28 @@ class HeartbeatRequest(BaseModel):
 class HeartbeatResponse(BaseModel):
     id: uuid.UUID
     lease_expires_at: datetime
+
+
+# --- Asset schemas (named key-value store) ---
+
+
+class AssetCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    value: str = ""
+    immutable: bool = False
+
+
+class AssetUpdate(BaseModel):
+    value: str | None = None
+    immutable: bool | None = None
+
+
+class AssetResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    value: str
+    immutable: bool
+    created_at: datetime
+    updated_at: datetime

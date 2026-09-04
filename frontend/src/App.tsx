@@ -8,6 +8,7 @@ import { AgentList } from "@/pages/AgentList";
 import { RunsPage } from "@/pages/RunsPage";
 import { QueuesPage } from "@/pages/QueuesPage";
 import { TriggersPage } from "@/pages/TriggersPage";
+import { AssetsPage } from "@/pages/AssetsPage";
 import { LogsPage } from "@/pages/LogsPage";
 import { Login } from "@/pages/Login";
 import { AuthProvider, useAuth, useMinRole } from "@/lib/auth";
@@ -108,6 +109,14 @@ export default function App() {
               element={
                 <RequireAuth>
                   <TriggersPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/assets"
+              element={
+                <RequireAuth>
+                  <AssetsPage />
                 </RequireAuth>
               }
             />

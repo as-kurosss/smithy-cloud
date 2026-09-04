@@ -1,6 +1,6 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { Bot, Cpu, Inbox, Layers, LogOut, Menu, Play, ScrollText, Timer, X } from "lucide-react";
+import { Bot, Cpu, Inbox, KeyRound, Layers, LogOut, Menu, Play, ScrollText, Timer, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 
@@ -10,6 +10,7 @@ const navItems = [
   { to: "/agents", label: "Agents", icon: Cpu },
   { to: "/queues", label: "Queues", icon: Inbox },
   { to: "/triggers", label: "Triggers", icon: Timer },
+  { to: "/assets", label: "Assets", icon: KeyRound },
   { to: "/logs", label: "Logs", icon: ScrollText },
 ];
 
