@@ -30,6 +30,21 @@ const STATUS_STYLES: Record<Trigger["status"], string> = {
   disabled: "bg-amber-100 text-amber-700",
 };
 
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function repeatSummary(trigger: Trigger): string {
+  switch (trigger.repeat) {
+    case "once":
+      return "Once";
+    case "hourly":
+      return `Every ${trigger.repeat_interval_hours ?? 1}h`;
+    case "daily":
+      return "Daily";
+    case "weekly":
+      return (trigger.days_of_week ?? []).map((d) => WEEKDAYS[d]).join(", ");
+  }
+}
+
 function toLocalInputValue(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return (
@@ -51,6 +66,9 @@ export function TriggersPage() {
   const [newRunAt, setNewRunAt] = useState(() =>
     toLocalInputValue(new Date(Date.now() + 60 * 60 * 1000)),
   );
+  const [newRepeat, setNewRepeat] = useState<Trigger["repeat"]>("once");
+  const [newInterval, setNewInterval] = useState("1");
+  const [newDays, setNewDays] = useState<number[]>([]);
   const [creating, setCreating] = useState(false);
   const canOperator = useMinRole("operator");
 
@@ -90,6 +108,10 @@ export function TriggersPage() {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!newName.trim() || !newAgent || !newProcess || !newRunAt) return;
+    if (newRepeat === "weekly" && newDays.length === 0) {
+      setError("Weekly repeat needs at least one day");
+      return;
+    }
     setCreating(true);
     setError(null);
     try {
@@ -100,8 +122,15 @@ export function TriggersPage() {
         agent_id: newAgent,
         process_id: newProcess,
         run_at: runAt,
+        repeat: newRepeat,
+        ...(newRepeat === "hourly"
+          ? { repeat_interval_hours: Math.max(1, Number(newInterval) || 1) }
+          : {}),
+        ...(newRepeat === "weekly" ? { days_of_week: newDays } : {}),
       });
       setNewName("");
+      setNewRepeat("once");
+      setNewDays([]);
       setShowCreate(false);
       await loadTriggers();
     } catch (err) {
@@ -109,6 +138,12 @@ export function TriggersPage() {
     } finally {
       setCreating(false);
     }
+  }
+
+  function toggleDay(day: number) {
+    setNewDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort(),
+    );
   }
 
   async function handleToggle(trigger: Trigger) {
@@ -139,8 +174,9 @@ export function TriggersPage() {
             {!loading && <Badge variant="secondary">{triggers.length}</Badge>}
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            One-shot scheduled runs — pick an agent, a process and a launch
-            time. Late triggers still fire on the next poll, never skipped.
+            One-shot or recurring runs — pick an agent, a process and a launch
+            time (Moscow, UTC+3). Late triggers still fire on the next poll,
+            never skipped.
           </p>
         </div>
         {canOperator && (
@@ -178,7 +214,7 @@ export function TriggersPage() {
                 </div>
                 <div className="space-y-1.5">
                   <label htmlFor="trigger-run-at" className="text-sm font-medium">
-                    Run at
+                    Run at (Moscow)
                   </label>
                   <Input
                     id="trigger-run-at"
@@ -188,6 +224,65 @@ export function TriggersPage() {
                     required
                   />
                 </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="trigger-repeat" className="text-sm font-medium">
+                    Repeat
+                  </label>
+                  <select
+                    id="trigger-repeat"
+                    value={newRepeat}
+                    onChange={(e) =>
+                      setNewRepeat(e.target.value as Trigger["repeat"])
+                    }
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none"
+                  >
+                    <option value="once">Once</option>
+                    <option value="hourly">Hourly</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                  </select>
+                </div>
+                {newRepeat === "hourly" && (
+                  <div className="space-y-1.5">
+                    <label
+                      htmlFor="trigger-interval"
+                      className="text-sm font-medium"
+                    >
+                      Every N hours
+                    </label>
+                    <Input
+                      id="trigger-interval"
+                      type="number"
+                      min={1}
+                      max={168}
+                      value={newInterval}
+                      onChange={(e) => setNewInterval(e.target.value)}
+                      required
+                    />
+                  </div>
+                )}
+                {newRepeat === "weekly" && (
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <span className="text-sm font-medium">Days of week</span>
+                    <div className="flex flex-wrap gap-2">
+                      {WEEKDAYS.map((label, day) => (
+                        <button
+                          key={day}
+                          type="button"
+                          onClick={() => toggleDay(day)}
+                          className={cn(
+                            "rounded-full px-3 py-1 text-xs font-medium transition-all",
+                            newDays.includes(day)
+                              ? "bg-emerald-600 text-white"
+                              : "bg-emerald-600/10 text-emerald-900 hover:bg-emerald-600/20",
+                          )}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <label htmlFor="trigger-agent" className="text-sm font-medium">
                     Agent
@@ -264,7 +359,8 @@ export function TriggersPage() {
                 <TableHead>Name</TableHead>
                 <TableHead>Agent</TableHead>
                 <TableHead>Process</TableHead>
-                <TableHead>Run at</TableHead>
+                <TableHead>Next run</TableHead>
+                <TableHead>Repeat</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -280,6 +376,11 @@ export function TriggersPage() {
                   <TableCell>{trigger.process_name}</TableCell>
                   <TableCell className="text-muted-foreground">
                     {new Date(trigger.run_at).toLocaleString()}
+                  </TableCell>
+                  <TableCell>
+                    <span className="rounded-full bg-emerald-600/10 px-2 py-0.5 text-xs font-medium text-emerald-900">
+                      {repeatSummary(trigger)}
+                    </span>
                   </TableCell>
                   <TableCell>
                     <span

@@ -81,6 +81,10 @@ export interface Trigger {
   agent_name: string;
   process_name: string;
   run_at: string;
+  repeat: "once" | "hourly" | "daily" | "weekly";
+  repeat_interval_hours: number | null;
+  days_of_week: number[] | null;
+  timezone: string;
   enabled: boolean;
   fired_at: string | null;
   last_run_id: string | null;

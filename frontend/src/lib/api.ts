@@ -227,7 +227,7 @@ export function deleteQueue(name: string): Promise<void> {
   return request<void>(`/queues/${encodeURIComponent(name)}`, { method: "DELETE" });
 }
 
-// Triggers (one-shot scheduled runs)
+// Triggers (one-shot or recurring scheduled runs)
 export function fetchTriggers(): Promise<Trigger[]> {
   return request<Trigger[]>("/triggers");
 }
@@ -238,6 +238,9 @@ export function createTrigger(payload: {
   process_id: string;
   run_at: string;
   enabled?: boolean;
+  repeat?: Trigger["repeat"];
+  repeat_interval_hours?: number;
+  days_of_week?: number[];
 }): Promise<Trigger> {
   return request<Trigger>("/triggers", {
     method: "POST",

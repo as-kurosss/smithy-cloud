@@ -271,7 +271,11 @@ class QueueItem(Base):
 
 
 class Trigger(Base):
-    """One-shot scheduled run: fires once via the lifespan poller, never missed."""
+    """Scheduled run: one-shot or recurring (hourly/daily/weekly, wall-clock Moscow).
+
+    ``run_at`` is always the next fire time (UTC); the poller fires due rows and
+    reschedules recurring ones, so a trigger is never skipped.
+    """
 
     __tablename__ = "triggers"
     __table_args__ = (Index("ix_triggers_due", "enabled", "run_at"),)
@@ -285,6 +289,10 @@ class Trigger(Base):
         UUID(as_uuid=True), ForeignKey("processes.id", ondelete="CASCADE"), nullable=False
     )
     run_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    repeat: Mapped[str] = mapped_column(String(10), nullable=False, default="once")
+    repeat_interval_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    days_of_week: Mapped[list[int] | None] = mapped_column(JSONB, nullable=True)
+    timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="Europe/Moscow")
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     fired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_run_id: Mapped[uuid.UUID | None] = mapped_column(

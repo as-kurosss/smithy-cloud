@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from smithy_cloud.models import (
     AgentStatus,
@@ -15,6 +15,7 @@ from smithy_cloud.models import (
     QueueItemStatus,
     RunStatus,
 )
+from smithy_cloud.scheduling import resolve_zone
 
 # --- Agent schemas ---
 
@@ -215,6 +216,33 @@ class TriggerCreate(BaseModel):
     process_id: uuid.UUID
     run_at: AwareDatetime
     enabled: bool = True
+    repeat: Literal["once", "hourly", "daily", "weekly"] = "once"
+    repeat_interval_hours: int | None = Field(default=None, ge=1, le=168)
+    days_of_week: list[int] | None = None
+    timezone: str = "Europe/Moscow"
+
+    @field_validator("days_of_week")
+    @classmethod
+    def _check_weekdays(cls, value: list[int] | None) -> list[int] | None:
+        if value is None:
+            return None
+        if any(day not in range(7) for day in value):
+            raise ValueError("days_of_week must contain 0 (Mon) .. 6 (Sun)")
+        return sorted(set(value))
+
+    @field_validator("timezone")
+    @classmethod
+    def _check_timezone(cls, value: str) -> str:
+        resolve_zone(value)
+        return value
+
+    @model_validator(mode="after")
+    def _check_repeat_params(self) -> TriggerCreate:
+        if self.repeat == "weekly" and not self.days_of_week:
+            raise ValueError("weekly repeat requires days_of_week")
+        if self.repeat == "hourly" and self.repeat_interval_hours is None:
+            raise ValueError("hourly repeat requires repeat_interval_hours")
+        return self
 
 
 class TriggerUpdate(BaseModel):
@@ -232,6 +260,10 @@ class TriggerResponse(BaseModel):
     agent_name: str
     process_name: str
     run_at: datetime
+    repeat: Literal["once", "hourly", "daily", "weekly"]
+    repeat_interval_hours: int | None
+    days_of_week: list[int] | None
+    timezone: str
     enabled: bool
     fired_at: datetime | None
     last_run_id: uuid.UUID | None
