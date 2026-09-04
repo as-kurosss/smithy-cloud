@@ -316,6 +316,54 @@ async def test_complete_foreign_run_conflicts(client: httpx.AsyncClient) -> None
     assert replay.status_code == 409  # no longer in_progress
 
 
+async def test_heartbeat_extends_lease(client: httpx.AsyncClient) -> None:
+    agent_id, headers = await _register_agent(client, "beater")
+    await _create_queue(client, "beating")
+    await _add_items(client, "beating", [{"payload": {"n": 1}}])
+    run_id = await _create_run(client, agent_id)
+    claimed = await _claim(client, agent_id, "beating", run_id, headers)
+    item_id = str(claimed.json()["item"]["id"])
+    first_lease = claimed.json()["item"]["lease_expires_at"]
+
+    resp = await client.patch(
+        f"/api/agents/{agent_id}/queue-items/{item_id}/heartbeat",
+        json={"run_id": run_id, "lease_seconds": 3600},
+        headers=headers,
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["id"] == item_id
+    assert body["lease_expires_at"] > first_lease
+
+
+async def test_heartbeat_unknown_item_is_404(client: httpx.AsyncClient) -> None:
+    agent_id, headers = await _register_agent(client, "beater-404")
+    run_id = await _create_run(client, agent_id)
+    resp = await client.patch(
+        f"/api/agents/{agent_id}/queue-items/{uuid.uuid4()}/heartbeat",
+        json={"run_id": run_id, "lease_seconds": 60},
+        headers=headers,
+    )
+    assert resp.status_code == 404, resp.text
+
+
+async def test_heartbeat_foreign_run_conflicts(client: httpx.AsyncClient) -> None:
+    agent_id, headers = await _register_agent(client, "beater-409")
+    await _create_queue(client, "beating-409")
+    await _add_items(client, "beating-409", [{"payload": {"n": 1}}])
+    run1 = await _create_run(client, agent_id)
+    run2 = await _create_run(client, agent_id)
+    claimed = await _claim(client, agent_id, "beating-409", run1, headers)
+    item_id = str(claimed.json()["item"]["id"])
+
+    foreign = await client.patch(
+        f"/api/agents/{agent_id}/queue-items/{item_id}/heartbeat",
+        json={"run_id": run2, "lease_seconds": 60},
+        headers=headers,
+    )
+    assert foreign.status_code == 409, foreign.text
+
+
 async def test_agent_endpoints_require_token(client: httpx.AsyncClient) -> None:
     agent_id, _ = await _register_agent(client, "guarded")
     await _create_queue(client, "guarded")

@@ -19,6 +19,8 @@ from smithy_cloud.schemas import (
     ClaimRequest,
     ClaimResponse,
     CompleteRequest,
+    HeartbeatRequest,
+    HeartbeatResponse,
     QueueCounts,
     QueueCreate,
     QueueItemCreated,
@@ -219,6 +221,29 @@ async def claim_queue_item(
             lease_expires_at=expires_at,
         )
     )
+
+
+@router.patch(
+    "/agents/{agent_id}/queue-items/{item_id}/heartbeat",
+    response_model=HeartbeatResponse,
+)
+async def heartbeat_queue_item(
+    agent_id: uuid.UUID,
+    item_id: uuid.UUID,
+    body: HeartbeatRequest,
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+) -> HeartbeatResponse:
+    """Extend the lease of an in_progress item owned by this run."""
+    await _authenticate(agent_id, authorization, db)
+    item = await db.get(QueueItem, item_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Queue item not found")
+    if item.status != QueueItemStatus.IN_PROGRESS.value or item.run_id != body.run_id:
+        raise HTTPException(status_code=409, detail="Item is not in_progress for this run")
+    item.lease_expires_at = datetime.now(UTC) + timedelta(seconds=body.lease_seconds)
+    await db.commit()
+    return HeartbeatResponse(id=item.id, lease_expires_at=item.lease_expires_at)
 
 
 @router.patch("/agents/{agent_id}/queue-items/{item_id}", response_model=QueueItemState)

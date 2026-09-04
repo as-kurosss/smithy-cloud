@@ -270,3 +270,13 @@ class QueueItemState(BaseModel):
     id: uuid.UUID
     status: QueueItemStatus
     attempts: int
+
+
+class HeartbeatRequest(BaseModel):
+    run_id: uuid.UUID
+    lease_seconds: int = Field(default=300, ge=1)
+
+
+class HeartbeatResponse(BaseModel):
+    id: uuid.UUID
+    lease_expires_at: datetime
