@@ -43,6 +43,11 @@ export interface ProcessLog {
   details: Record<string, unknown> | null;
 }
 
+export interface ProcessLogEntry extends ProcessLog {
+  process_id: string;
+  process_name: string;
+}
+
 export interface Queue {
   id: string;
   name: string;

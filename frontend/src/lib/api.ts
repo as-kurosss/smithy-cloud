@@ -3,6 +3,7 @@ import type {
   Agent,
   ProcessRun,
   ProcessLog,
+  ProcessLogEntry,
   Queue,
   QueueWithCounts,
   QueueItemCreated,
@@ -169,6 +170,12 @@ export function fetchProcessRuns(processId: string): Promise<ProcessRun[]> {
 
 export function fetchProcessLogs(processId: string): Promise<ProcessLog[]> {
   return request<ProcessLog[]>(`/processes/${processId}/logs`);
+}
+
+export function fetchLogs(processId?: string, limit = 200): Promise<ProcessLogEntry[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (processId) params.set("process_id", processId);
+  return request<ProcessLogEntry[]>(`/logs?${params.toString()}`);
 }
 
 // Agents

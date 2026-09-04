@@ -1,6 +1,6 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { Bot, Cpu, Inbox, Layers, LogOut, Menu, X } from "lucide-react";
+import { Bot, Cpu, Inbox, Layers, LogOut, Menu, ScrollText, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 
@@ -8,6 +8,7 @@ const navItems = [
   { to: "/processes", label: "Processes", icon: Layers },
   { to: "/agents", label: "Agents", icon: Cpu },
   { to: "/queues", label: "Queues", icon: Inbox },
+  { to: "/logs", label: "Logs", icon: ScrollText },
 ];
 
 function linkClass({ isActive }: { isActive: boolean }) {

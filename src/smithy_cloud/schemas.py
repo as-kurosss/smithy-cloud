@@ -199,6 +199,13 @@ class ProcessLogResponse(BaseModel):
     details: dict[str, Any] | None
 
 
+class ProcessLogEntry(ProcessLogResponse):
+    """A log row annotated with its process (for the global Logs page)."""
+
+    process_id: uuid.UUID
+    process_name: str
+
+
 # --- Queue schemas (transactional items, REFramework-style) ---
 
 
